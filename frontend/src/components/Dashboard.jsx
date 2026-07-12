@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStats, useTriggerReminders } from '../hooks/useProblems';
 import {
   BookOpen,
@@ -8,7 +8,9 @@ import {
   Flame,
   Send,
   Loader2,
+  Quote,
 } from 'lucide-react';
+import { getRandomQuote } from '../lib/quotes';
 
 function StatCard({ icon: Icon, label, value, colorClass, subText }) {
   return (
@@ -29,6 +31,15 @@ export default function Dashboard() {
   const { data: stats, isLoading } = useStats();
   const triggerReminders = useTriggerReminders();
   const [reminderMsg, setReminderMsg] = useState('');
+  const [quote, setQuote] = useState({ text: '', source: '', series: '' });
+
+  useEffect(() => {
+    setQuote(getRandomQuote());
+  }, []);
+
+  const handleRefreshQuote = () => {
+    setQuote(getRandomQuote());
+  };
 
   const handleTrigger = async () => {
     try {
@@ -46,6 +57,32 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Quote Banner */}
+      {quote.text && (
+        <div className="relative card p-6 bg-gradient-to-r from-card to-bg border border-border/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 overflow-hidden rounded-xl group/quote">
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2 text-accent/70">
+              <Quote size={16} />
+              <span className="text-[10px] uppercase font-semibold tracking-widest text-muted">{quote.series}</span>
+            </div>
+            <p className="text-text font-medium text-sm md:text-base italic leading-relaxed">
+              "{quote.text}"
+            </p>
+            <p className="text-xs text-muted font-mono">
+              — <span className="text-accent">{quote.source}</span>
+            </p>
+          </div>
+          <button
+            onClick={handleRefreshQuote}
+            className="btn-secondary px-3 py-1.5 text-xs flex items-center gap-1.5 select-none shrink-0"
+            title="Next quote"
+          >
+            <RefreshCw size={12} className="group-hover/quote:rotate-180 transition-transform duration-500" />
+            Shuffle Quote
+          </button>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
