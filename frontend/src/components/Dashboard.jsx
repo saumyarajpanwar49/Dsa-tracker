@@ -87,29 +87,29 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
           icon={BookOpen}
-          label="Total Problems"
+          label="Ninja Missions"
           value={isLoading ? '…' : stats?.total}
           colorClass="bg-accent/10 text-accent"
         />
         <StatCard
           icon={CheckCircle2}
-          label="Solved"
+          label="Completed Quests"
           value={isLoading ? '…' : stats?.solved}
           colorClass="bg-success/10 text-success"
           subText={stats ? `${Math.round((stats.solved / (stats.total || 1)) * 100)}% done` : ''}
         />
         <StatCard
           icon={RefreshCw}
-          label="Revisiting"
+          label="Revisiting Scroll"
           value={isLoading ? '…' : stats?.revisiting}
           colorClass="bg-warning/10 text-warning"
         />
         <StatCard
           icon={Flame}
-          label="Streak"
-          value={isLoading ? '…' : `${stats?.streak ?? 0}d`}
-          colorClass="bg-rose-500/10 text-rose-400"
-          subText="consecutive days"
+          label="Will of Fire"
+          value={isLoading ? '…' : `${stats?.streak ?? 0} days`}
+          colorClass="bg-accent/20 text-accent animate-chakra-glow"
+          subText="training streak"
         />
       </div>
 
@@ -117,8 +117,8 @@ export default function Dashboard() {
       {!isLoading && stats?.total > 0 && (
         <div className="card p-4">
           <div className="flex justify-between text-xs text-muted mb-2">
-            <span>Progress</span>
-            <span>{stats.solved} / {stats.total} solved</span>
+            <span>Shinobi Progress</span>
+            <span>{stats.solved} / {stats.total} missions cleared</span>
           </div>
           <div className="h-2 bg-tag-bg rounded-full overflow-hidden">
             <div
@@ -129,7 +129,7 @@ export default function Dashboard() {
           <div className="flex gap-4 mt-3 text-xs text-muted">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-success inline-block" />
-              Solved: {stats.solved}
+              Cleared: {stats.solved}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-warning inline-block" />
@@ -137,7 +137,7 @@ export default function Dashboard() {
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-muted inline-block" />
-              Unsolved: {stats.unsolved}
+              Unassigned: {stats.unsolved}
             </span>
           </div>
         </div>
@@ -146,9 +146,9 @@ export default function Dashboard() {
       {/* Reminder trigger */}
       <div className="card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
-          <h3 className="font-semibold text-text text-sm">Email Reminders</h3>
+          <h3 className="font-semibold text-text text-sm">Messenger Hawks (Email Reminders)</h3>
           <p className="text-xs text-muted mt-0.5">
-            Daily at 9 AM — queries unsolved problems older than 5 days. Or trigger manually:
+            Summon daily at 9 AM — queries incomplete training scrolls older than 5 days. Or dispatch manually:
           </p>
           {reminderMsg && (
             <p className="text-xs text-accent mt-1.5">{reminderMsg}</p>
@@ -157,14 +157,14 @@ export default function Dashboard() {
         <button
           onClick={handleTrigger}
           disabled={triggerReminders.isPending}
-          className="btn-secondary flex items-center gap-2 shrink-0"
+          className="btn-secondary flex items-center gap-2 shrink-0 border-accent/30 hover:border-accent hover:text-accent"
         >
           {triggerReminders.isPending ? (
             <Loader2 size={14} className="animate-spin" />
           ) : (
-            <Send size={14} />
+            <Send size={14} className="text-accent" />
           )}
-          Send Reminders Now
+          Dispatch Messenger Hawk
         </button>
       </div>
     </div>

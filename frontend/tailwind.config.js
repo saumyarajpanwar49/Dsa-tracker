@@ -4,18 +4,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#0d1117',
-        card: '#161b22',
-        border: '#30363d',
-        accent: '#58a6ff',
-        'accent-hover': '#79b8ff',
-        muted: '#8b949e',
-        text: '#e6edf3',
-        'text-secondary': '#c9d1d9',
-        success: '#3fb950',
-        warning: '#d29922',
-        danger: '#f85149',
-        'tag-bg': '#21262d',
+        bg: '#080a0f', // Deep Ninja scroll navy black
+        card: '#10141f', // Konoha armor deep gray-blue
+        border: '#1f2538', // Metal/Kunai steel border
+        accent: '#ff7a00', // Naruto Orange
+        'accent-hover': '#ff9533', // Nine-Tails Chakra Light Orange
+        muted: '#727d96', // Slate grey
+        text: '#f0f3f8', // Soft white
+        'text-secondary': '#adb8cc', // Soft blue-grey
+        success: '#10b981', // Medical Ninjutsu Green
+        warning: '#f59e0b', // Sage Mode Yellow
+        danger: '#ef4444', // Uchiha Crimson Red
+        'tag-bg': '#181e2f', // Hidden Leaf Headband blue-black
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'monospace'],
@@ -24,6 +24,7 @@ export default {
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',
         'slide-up': 'slideUp 0.25s ease-out',
+        'chakra-glow': 'chakraGlow 2s infinite alternate',
       },
       keyframes: {
         fadeIn: {
@@ -34,6 +35,10 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(12px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        chakraGlow: {
+          '0%': { boxShadow: '0 0 5px rgba(255, 122, 0, 0.2)' },
+          '100%': { boxShadow: '0 0 20px rgba(255, 122, 0, 0.6)' },
+        }
       },
     },
   },

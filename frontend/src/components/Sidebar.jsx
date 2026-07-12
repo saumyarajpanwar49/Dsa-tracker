@@ -45,10 +45,20 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 shrink-0 flex flex-col h-full bg-card border-r border-border">
-      {/* Logo */}
+      {/* Konoha Leaf Logo */}
       <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border">
-        <BookOpen size={20} className="text-accent" />
-        <span className="font-bold text-text text-base tracking-tight">DSA Tracker</span>
+        <svg
+          viewBox="0 0 100 100"
+          className="w-6 h-6 text-accent fill-none stroke-current stroke-[8]"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          {/* Konoha Swirl Spiral Logo */}
+          <path d="M 50 35 C 38 35, 33 45, 38 52 C 43 59, 57 59, 62 52 C 67 45, 62 30, 48 24 C 34 18, 18 28, 22 48 C 26 68, 52 78, 68 70 C 80 64, 88 44, 80 30" />
+          <path d="M 22 48 L 10 42" />
+          <path d="M 80 30 L 90 32" />
+        </svg>
+        <span className="font-bold text-text text-base tracking-wider font-mono">KONOHA DSA</span>
       </div>
 
       {/* Nav */}

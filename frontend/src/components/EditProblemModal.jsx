@@ -110,24 +110,28 @@ export default function EditProblemModal({ problem, onClose }) {
           </div>
 
           <div>
-            <label className="label">Priority</label>
+            <label className="label">Mission Rank</label>
             <div className="flex gap-2">
-              {['high', 'medium', 'low'].map((p) => (
+              {[
+                { key: 'high', label: 'S-Rank' },
+                { key: 'medium', label: 'A-Rank' },
+                { key: 'low', label: 'B-Rank' }
+              ].map((p) => (
                 <button
-                  key={p}
+                  key={p.key}
                   type="button"
-                  onClick={() => setForm((f) => ({ ...f, priority: p }))}
+                  onClick={() => setForm((f) => ({ ...f, priority: p.key }))}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                    form.priority === p
-                      ? p === 'high'
+                    form.priority === p.key
+                      ? p.key === 'high'
                         ? 'bg-danger/15 text-danger border-danger/40'
-                        : p === 'medium'
-                        ? 'bg-warning/15 text-warning border-warning/40'
+                        : p.key === 'medium'
+                        ? 'bg-accent/15 text-accent border-accent/40'
                         : 'bg-muted/15 text-muted border-border'
                       : 'bg-transparent text-muted border-border hover:border-muted'
                   }`}
                 >
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                  {p.label}
                 </button>
               ))}
             </div>

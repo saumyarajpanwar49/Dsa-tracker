@@ -1,16 +1,16 @@
 const PRIORITY_CONFIG = {
   high: {
-    label: 'High',
-    classes: 'bg-danger/10 text-danger border-danger/30',
-    dot: 'bg-danger',
+    label: 'S-Rank',
+    classes: 'bg-danger/10 text-danger border-danger/30 font-bold',
+    dot: 'bg-danger animate-pulse',
   },
   medium: {
-    label: 'Medium',
-    classes: 'bg-warning/10 text-warning border-warning/30',
-    dot: 'bg-warning',
+    label: 'A-Rank',
+    classes: 'bg-accent/10 text-accent border-accent/30 font-semibold',
+    dot: 'bg-accent',
   },
   low: {
-    label: 'Low',
+    label: 'B-Rank',
     classes: 'bg-muted/10 text-muted border-border',
     dot: 'bg-muted',
   },
