@@ -1,0 +1,45 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Problem {
+  id             String         @id @default(uuid())
+  name           String
+  link           String
+  approach       String         @db.Text
+  topic          String
+  status         String         @default("unsolved") // unsolved | solved | revisiting
+  priority       String         @default("medium")   // high | medium | low
+  createdAt      DateTime       @default(now())
+  lastRemindedAt DateTime?
+  reminderSent   Boolean        @default(false)
+  revisionNotes  RevisionNote[]
+}
+
+model RevisionNote {
+  id        String   @id @default(uuid())
+  problemId String
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  note      String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+model CustomTopic {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model DeletedTopic {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
