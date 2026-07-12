@@ -4,18 +4,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#080a0f', // Deep Ninja scroll navy black
-        card: '#10141f', // Konoha armor deep gray-blue
-        border: '#1f2538', // Metal/Kunai steel border
+        bg: '#0c120e', // Deep forest shinobi background
+        card: '#142018', // Jounin Flak Jacket Green-Black
+        border: '#25382b', // Kunai/Steel Olive green border
         accent: '#ff7a00', // Naruto Orange
-        'accent-hover': '#ff9533', // Nine-Tails Chakra Light Orange
-        muted: '#727d96', // Slate grey
-        text: '#f0f3f8', // Soft white
-        'text-secondary': '#adb8cc', // Soft blue-grey
+        'accent-hover': '#ff9533', // Nine-Tails Light Orange
+        muted: '#7a9282', // Sage/Leaf green-slate
+        text: '#e8ece9', // Soft chalk white
+        'text-secondary': '#a0b5a6', // Soft green-grey
         success: '#10b981', // Medical Ninjutsu Green
         warning: '#f59e0b', // Sage Mode Yellow
         danger: '#ef4444', // Uchiha Crimson Red
-        'tag-bg': '#181e2f', // Hidden Leaf Headband blue-black
+        'tag-bg': '#1d2f23', // Shinobi pouch forest green
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'monospace'],
