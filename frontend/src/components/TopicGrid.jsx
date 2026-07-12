@@ -3,14 +3,12 @@ import { useTopics, useProblems } from '../hooks/useProblems';
 import { BookOpen, Loader2 } from 'lucide-react';
 
 const TOPIC_COLORS = [
-  'from-blue-500/10 to-blue-600/5 border-blue-500/20 hover:border-blue-400/50',
-  'from-purple-500/10 to-purple-600/5 border-purple-500/20 hover:border-purple-400/50',
-  'from-emerald-500/10 to-emerald-600/5 border-emerald-500/20 hover:border-emerald-400/50',
-  'from-amber-500/10 to-amber-600/5 border-amber-500/20 hover:border-amber-400/50',
-  'from-rose-500/10 to-rose-600/5 border-rose-500/20 hover:border-rose-400/50',
-  'from-cyan-500/10 to-cyan-600/5 border-cyan-500/20 hover:border-cyan-400/50',
-  'from-indigo-500/10 to-indigo-600/5 border-indigo-500/20 hover:border-indigo-400/50',
-  'from-orange-500/10 to-orange-600/5 border-orange-500/20 hover:border-orange-400/50',
+  'from-accent/15 to-accent/5 border-accent/20 hover:border-accent/40',
+  'from-red-600/10 to-red-700/5 border-red-500/20 hover:border-red-500/40',
+  'from-amber-600/10 to-amber-700/5 border-amber-500/20 hover:border-amber-500/40',
+  'from-yellow-600/10 to-yellow-700/5 border-yellow-500/20 hover:border-yellow-500/40',
+  'from-emerald-600/10 to-emerald-700/5 border-emerald-500/20 hover:border-emerald-500/40',
+  'from-cyan-600/10 to-cyan-700/5 border-cyan-500/20 hover:border-cyan-500/40',
 ];
 
 export default function TopicGrid() {
