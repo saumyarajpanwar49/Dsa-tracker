@@ -1,3 +1,4 @@
+
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 
@@ -10,9 +11,9 @@ router.get('/dashboard', async (req, res, next) => {
       await Promise.all([
         prisma.user.count(),
         prisma.user.count({ where: { isActive: true } }),
-        prisma.problem.count({ where: { userId: { not: null } } }),
+        prisma.problem.count(),
         prisma.problem.count({
-          where: { userId: { not: null }, status: 'solved' },
+          where: { status: 'solved' },
         }),
         prisma.user.findMany({
           select: {
