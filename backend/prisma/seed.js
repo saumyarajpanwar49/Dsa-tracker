@@ -24,6 +24,7 @@ async function main() {
     update: {
       role: 'ADMIN',
       isActive: true,
+      passwordHash,
     },
     create: {
       name,
@@ -34,6 +35,7 @@ async function main() {
   });
 
   console.log('Administrator ready:', admin.email);
+  console.log('Administrator password updated successfully.');
 }
 
 main()
