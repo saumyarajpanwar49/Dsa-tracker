@@ -14,109 +14,134 @@ function createTransporter() {
   });
 }
 
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]);
+}
+
 function buildEmailHtml(problems) {
-  const rows = problems
-    .map(
-      (p) => `
-      <tr style="border-bottom: 1px solid #222;">
-        <td style="padding: 12px 8px; color: #FFF; font-weight: 600;">${p.name}</td>
-        <td style="padding: 12px 8px;">
-          <a href="${p.link}" style="color: #FFD700; text-decoration: none; font-family: monospace;">${p.link}</a>
-        </td>
-        <td style="padding: 12px 8px; color: #888; font-size: 13px;">${p.topic}</td>
-        <td style="padding: 12px 8px; color: #CCC; font-size: 13px;">${p.approach.slice(0, 200)}${p.approach.length > 200 ? '…' : ''}</td>
-        <td style="padding: 12px 8px;">
-          <span style="background:#FFD700;color:#000;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:bold;">
-            ${p.status}
-          </span>
-        </td>
-      </tr>`
-    )
-    .join('');
+  const rows = problems.map((problem) => `
+    <tr>
+      <td style="padding:12px;color:white;">${escapeHtml(problem.name)}</td>
+      <td style="padding:12px;">
+        <a href="${escapeHtml(problem.link)}" style="color:#FFD700;">
+          Open problem
+        </a>
+      </td>
+      <td style="padding:12px;color:#ccc;">${escapeHtml(problem.topic)}</td>
+      <td style="padding:12px;color:#ccc;">
+        ${escapeHtml(problem.approach.slice(0, 200))}
+      </td>
+      <td style="padding:12px;color:#FFD700;">
+        ${escapeHtml(problem.status)}
+      </td>
+    </tr>
+  `).join('');
 
   return `
-    <!DOCTYPE html>
     <html>
-    <head><meta charset="utf-8"></head>
-    <body style="margin:0;padding:0;background:#000;font-family:Inter,Arial,sans-serif;">
-      <div style="max-width:900px;margin:40px auto;background:#111;border-radius:12px;border:1px solid #222;overflow:hidden;">
-        <div style="padding:24px 32px;background:#000;border-bottom:1px solid #222;">
-          <h1 style="margin:0;color:#FFD700;font-size:22px;">🍥 Konoha DSA Scrolls Reminder</h1>
-          <p style="margin:8px 0 0;color:#888;font-size:14px;">
-            You have <strong style="color:#FFF;">${problems.length}</strong> training mission(s) waiting to be reviewed.
-          </p>
-        </div>
-        <div style="padding:24px 32px;">
-          <table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr style="border-bottom:2px solid #222;">
-                <th style="padding:8px;text-align:left;color:#FFD700;font-size:13px;">Name</th>
-                <th style="padding:8px;text-align:left;color:#FFD700;font-size:13px;">Link</th>
-                <th style="padding:8px;text-align:left;color:#FFD700;font-size:13px;">Topic</th>
-                <th style="padding:8px;text-align:left;color:#FFD700;font-size:13px;">Approach</th>
-                <th style="padding:8px;text-align:left;color:#FFD700;font-size:13px;">Status</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-        <div style="padding:16px 32px;border-top:1px solid #222;text-align:center;">
-          <p style="margin:0;color:#888;font-size:12px;">Konoha DSA Tracker — dispatched automatically by Messenger Hawk</p>
-        </div>
-      </div>
-    </body>
+      <body style="background:#000;color:#fff;font-family:Arial,sans-serif;padding:24px;">
+        <h2 style="color:#FFD700;">Konoha DSA Reminder</h2>
+        <p>You have ${problems.length} problems waiting for review.</p>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="color:#FFD700;text-align:left;">
+              <th>Name</th><th>Link</th><th>Topic</th>
+              <th>Approach</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </body>
     </html>
   `;
 }
 
-async function sendReminders() {
+async function sendReminders(userId = null) {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
+    throw new Error('Email configuration is missing');
+  }
+
   const fiveDaysAgo = new Date();
   fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
 
-  const problems = await prisma.problem.findMany({
-    where: {
-      status: { not: 'solved' },
-      createdAt: { lte: fiveDaysAgo },
-      reminderSent: false,
-    },
-  });
+  const users = userId
+    ? await prisma.user.findMany({
+        where: { id: userId, isActive: true },
+        select: { id: true, email: true },
+      })
+    : await prisma.user.findMany({
+        where: { isActive: true },
+        select: { id: true, email: true },
+      });
 
-  if (problems.length === 0) {
-    console.log('📭 No problems due for reminder.');
-    return { sent: 0, problems: [] };
+  if (!users.length) {
+    return { sent: 0, message: 'No active users found' };
   }
 
   const transporter = createTransporter();
-  const html = buildEmailHtml(problems);
+  let sent = 0;
+  const failures = [];
 
-  await transporter.sendMail({
-    from: `"DSA Tracker" <${process.env.EMAIL_USER}>`,
-    to: process.env.MY_EMAIL,
-    subject: `📚 DSA Reminder: ${problems.length} problem(s) need your attention`,
-    html,
-  });
+  for (const user of users) {
+    const problems = await prisma.problem.findMany({
+      where: {
+        userId: user.id,
+        status: { not: 'solved' },
+        createdAt: { lte: fiveDaysAgo },
+        reminderSent: false,
+      },
+    });
 
-  // Mark all as reminded
-  await prisma.problem.updateMany({
-    where: { id: { in: problems.map((p) => p.id) } },
-    data: { reminderSent: true, lastRemindedAt: new Date() },
-  });
+    if (!problems.length) continue;
 
-  console.log(`✅ Reminder sent for ${problems.length} problem(s).`);
-  return { sent: problems.length, problems: problems.map((p) => p.name) };
+    try {
+      await transporter.sendMail({
+        from: `"DSA Tracker" <${process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: `DSA Reminder: ${problems.length} problem(s) need review`,
+        html: buildEmailHtml(problems),
+      });
+
+      await prisma.problem.updateMany({
+        where: {
+          userId: user.id,
+          id: { in: problems.map((problem) => problem.id) },
+        },
+        data: {
+          reminderSent: true,
+          lastRemindedAt: new Date(),
+        },
+      });
+
+      sent += problems.length;
+    } catch (error) {
+      console.error(`Reminder failed for ${user.email}:`, error.message);
+      failures.push(user.email);
+    }
+  }
+
+  return { sent, failedUsers: failures };
 }
 
 function startCronJob() {
-  // Runs every day at 9:00 AM
   cron.schedule('0 9 * * *', async () => {
-    console.log('⏰ Cron: running daily reminder check...');
+    console.log('Running daily DSA reminders');
+
     try {
-      await sendReminders();
-    } catch (err) {
-      console.error('Cron reminder error:', err);
+      const result = await sendReminders();
+      console.log('Reminder result:', result);
+    } catch (error) {
+      console.error('Reminder cron failed:', error);
     }
   });
-  console.log('📅 Daily reminder cron scheduled (9:00 AM)');
+
+  console.log('Daily reminder scheduled for 9:00 AM server time');
 }
 
 module.exports = { sendReminders, startCronJob };

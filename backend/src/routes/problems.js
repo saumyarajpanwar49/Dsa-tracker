@@ -4,44 +4,52 @@ const { PrismaClient } = require('@prisma/client');
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// GET /api/problems?topic=&status=
+const problemInclude = {
+  revisionNotes: { orderBy: { createdAt: 'desc' } },
+};
+
 router.get('/', async (req, res, next) => {
   try {
     const { topic, status } = req.query;
-    const where = {};
+
+    const where = { userId: req.user.id };
     if (topic) where.topic = topic;
     if (status) where.status = status;
 
     const problems = await prisma.problem.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: {
-        revisionNotes: { orderBy: { createdAt: 'desc' } },
-      },
+      include: problemInclude,
     });
+
     res.json(problems);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 });
 
-// GET /api/problems/stats
 router.get('/stats', async (req, res, next) => {
   try {
-    const total = await prisma.problem.count();
-    const solved = await prisma.problem.count({ where: { status: 'solved' } });
-    const revisiting = await prisma.problem.count({ where: { status: 'revisiting' } });
-    const unsolved = await prisma.problem.count({ where: { status: 'unsolved' } });
+    const userId = req.user.id;
 
-    // Streak: count consecutive days (from today going backward) that have at least one problem
-    const problems = await prisma.problem.findMany({
-      select: { createdAt: true },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [total, solved, revisiting, unsolved, problems] =
+      await Promise.all([
+        prisma.problem.count({ where: { userId } }),
+        prisma.problem.count({ where: { userId, status: 'solved' } }),
+        prisma.problem.count({ where: { userId, status: 'revisiting' } }),
+        prisma.problem.count({ where: { userId, status: 'unsolved' } }),
+        prisma.problem.findMany({
+          where: { userId },
+          select: { createdAt: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
 
     const uniqueDays = [
       ...new Set(
-        problems.map((p) => p.createdAt.toISOString().split('T')[0])
+        problems.map((problem) =>
+          problem.createdAt.toISOString().split('T')[0]
+        )
       ),
     ].sort((a, b) => b.localeCompare(a));
 
@@ -50,51 +58,93 @@ router.get('/stats', async (req, res, next) => {
     let current = today;
 
     for (const day of uniqueDays) {
-      if (day === current) {
-        streak++;
-        const d = new Date(current);
-        d.setDate(d.getDate() - 1);
-        current = d.toISOString().split('T')[0];
-      } else {
-        break;
-      }
+      if (day !== current) break;
+
+      streak++;
+      const previous = new Date(`${current}T00:00:00.000Z`);
+      previous.setUTCDate(previous.getUTCDate() - 1);
+      current = previous.toISOString().split('T')[0];
     }
 
     res.json({ total, solved, revisiting, unsolved, streak });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 });
 
-// POST /api/problems
 router.post('/', async (req, res, next) => {
   try {
     const { name, link, approach, topic, status, priority } = req.body;
-    if (!name || !link || !approach || !topic) {
-      return res.status(400).json({ error: 'name, link, approach, and topic are required' });
+
+    if (
+      ![name, link, approach, topic].every(
+        (value) => typeof value === 'string' && value.trim()
+      )
+    ) {
+      return res.status(400).json({
+        error: 'name, link, approach, and topic are required',
+      });
     }
+
+    if (
+      status !== undefined &&
+      !['unsolved', 'solved', 'revisiting'].includes(status)
+    ) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    if (
+      priority !== undefined &&
+      !['high', 'medium', 'low'].includes(priority)
+    ) {
+      return res.status(400).json({ error: 'Invalid priority' });
+    }
+
     const problem = await prisma.problem.create({
       data: {
-        name, link, approach, topic,
+        userId: req.user.id,
+        name: name.trim(),
+        link: link.trim(),
+        approach: approach.trim(),
+        topic: topic.trim(),
         status: status || 'unsolved',
         priority: priority || 'medium',
       },
-      include: { revisionNotes: true },
+      include: problemInclude,
     });
+
     res.status(201).json(problem);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 });
 
-// PUT /api/problems/:id
 router.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, link, approach, topic, status, priority } = req.body;
 
-    const existing = await prisma.problem.findUnique({ where: { id } });
-    if (!existing) return res.status(404).json({ error: 'Problem not found' });
+    const existing = await prisma.problem.findFirst({
+      where: { id, userId: req.user.id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Problem not found' });
+    }
+
+    if (
+      status !== undefined &&
+      !['unsolved', 'solved', 'revisiting'].includes(status)
+    ) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    if (
+      priority !== undefined &&
+      !['high', 'medium', 'low'].includes(priority)
+    ) {
+      return res.status(400).json({ error: 'Invalid priority' });
+    }
 
     const updated = await prisma.problem.update({
       where: { id },
@@ -106,83 +156,109 @@ router.put('/:id', async (req, res, next) => {
         ...(status !== undefined && { status }),
         ...(priority !== undefined && { priority }),
       },
-      include: { revisionNotes: { orderBy: { createdAt: 'desc' } } },
+      include: problemInclude,
     });
+
     res.json(updated);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 });
 
-// DELETE /api/problems/:id
 router.delete('/:id', async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const existing = await prisma.problem.findUnique({ where: { id } });
-    if (!existing) return res.status(404).json({ error: 'Problem not found' });
+    const result = await prisma.problem.deleteMany({
+      where: { id: req.params.id, userId: req.user.id },
+    });
 
-    await prisma.problem.delete({ where: { id } });
+    if (!result.count) {
+      return res.status(404).json({ error: 'Problem not found' });
+    }
+
     res.json({ message: 'Deleted successfully' });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 });
 
-// ─── Revision Notes ────────────────────────────────────────────────────────
-
-// GET /api/problems/:id/notes
 router.get('/:id/notes', async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const problem = await prisma.problem.findFirst({
+      where: { id: req.params.id, userId: req.user.id },
+    });
+
+    if (!problem) {
+      return res.status(404).json({ error: 'Problem not found' });
+    }
+
     const notes = await prisma.revisionNote.findMany({
-      where: { problemId: id },
+      where: { problemId: problem.id },
       orderBy: { createdAt: 'desc' },
     });
+
     res.json(notes);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 });
 
-// POST /api/problems/:id/notes
 router.post('/:id/notes', async (req, res, next) => {
   try {
-    const { id } = req.params;
     const { note } = req.body;
-    if (!note || !note.trim()) {
-      return res.status(400).json({ error: 'note is required' });
+
+    if (typeof note !== 'string' || !note.trim()) {
+      return res.status(400).json({ error: 'Note is required' });
     }
 
-    const problem = await prisma.problem.findUnique({ where: { id } });
-    if (!problem) return res.status(404).json({ error: 'Problem not found' });
-
-    // Auto-set status to revisiting when a note is added
-    const created = await prisma.revisionNote.create({
-      data: { problemId: id, note: note.trim() },
+    const problem = await prisma.problem.findFirst({
+      where: { id: req.params.id, userId: req.user.id },
     });
 
-    // Mark problem as revisiting if it was solved
-    if (problem.status === 'solved') {
-      await prisma.problem.update({
-        where: { id },
-        data: { status: 'revisiting' },
-      });
+    if (!problem) {
+      return res.status(404).json({ error: 'Problem not found' });
     }
 
+    const created = await prisma.$transaction(async (tx) => {
+      const revision = await tx.revisionNote.create({
+        data: {
+          problemId: problem.id,
+          note: note.trim(),
+        },
+      });
+
+      if (problem.status === 'solved') {
+        await tx.problem.update({
+          where: { id: problem.id },
+          data: { status: 'revisiting' },
+        });
+      }
+
+      return revision;
+    });
+
     res.status(201).json(created);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 });
 
-// DELETE /api/problems/:problemId/notes/:noteId
 router.delete('/:problemId/notes/:noteId', async (req, res, next) => {
   try {
-    const { noteId } = req.params;
-    await prisma.revisionNote.delete({ where: { id: noteId } });
+    const result = await prisma.revisionNote.deleteMany({
+      where: {
+        id: req.params.noteId,
+        problemId: req.params.problemId,
+        problem: { userId: req.user.id },
+      },
+    });
+
+    if (!result.count) {
+      return res.status(404).json({ error: 'Revision note not found' });
+    }
+
     res.json({ message: 'Note deleted' });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 });
 
