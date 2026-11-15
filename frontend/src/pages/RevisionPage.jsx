@@ -6,49 +6,45 @@ import {
   completeRevision,
   scheduleRevision,
 } from '../services/learning';
+import { getQuestions } from '../lib/api';
 
 function RevisionSection({ title, items, onComplete, completingId }) {
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
-          {items.length}
-        </span>
-      </div>
+      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
 
       {items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-5 text-sm text-gray-500">
+        <p className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-500">
           No revisions in this section.
-        </div>
+        </p>
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
             <article
               key={item.id}
-              className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
             >
-              <div className="min-w-0 flex-1">
+              <div>
                 <h3 className="font-semibold text-gray-900">
                   {item.question?.title || 'Question'}
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {item.question?.topic || 'Other'} · {item.question?.pattern || 'General'}
+                <p className="text-sm text-gray-500">
+                  {item.question?.topic || 'Other'} ·{' '}
+                  {item.question?.pattern || 'General'}
                 </p>
-                <p className="mt-1 text-xs text-gray-400">
-                  Due: {new Date(item.dueAt).toLocaleDateString()}
-                  {' · '}
+                <p className="mt-1 text-xs text-gray-500">
+                  Due: {new Date(item.dueAt).toLocaleDateString()} ·{' '}
                   {item.question?.difficulty || 'Unknown difficulty'}
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex items-center gap-3">
                 {item.question?.url && (
                   <a
                     href={item.question.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
                   >
                     Open Question
                   </a>
@@ -59,7 +55,7 @@ function RevisionSection({ title, items, onComplete, completingId }) {
                   disabled={completingId === item.id}
                   className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
                 >
-                  {completingId === item.id ? 'Saving...' : 'Complete'}
+                  {completingId === item.id ? 'Completing...' : 'Complete'}
                 </button>
               </div>
             </article>
@@ -77,12 +73,18 @@ export default function RevisionPage() {
     dueToday: [],
     upcoming: [],
   });
+
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [completingId, setCompletingId] = useState(null);
-  const [questionId, setQuestionId] = useState('');
+
+  const [questionSearch, setQuestionSearch] = useState('');
+  const [questions, setQuestions] = useState([]);
+  const [selectedQuestionId, setSelectedQuestionId] = useState('');
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+
   const [dueAt, setDueAt] = useState('');
   const [scheduling, setScheduling] = useState(false);
 
@@ -117,6 +119,45 @@ export default function RevisionPage() {
     loadData();
   }, [loadData]);
 
+  // Search questions using the existing Question Bank API.
+  useEffect(() => {
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        setQuestionsLoading(true);
+
+        const data = await getQuestions({
+          page: 1,
+          limit: 100,
+          ...(questionSearch.trim()
+            ? { search: questionSearch.trim() }
+            : {}),
+        });
+
+        if (!cancelled) {
+          setQuestions(data.questions || []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setQuestions([]);
+          setError(
+            err.response?.data?.error || 'Unable to load questions.'
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setQuestionsLoading(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [questionSearch]);
+
   const handleComplete = async (id) => {
     try {
       setCompletingId(id);
@@ -139,8 +180,8 @@ export default function RevisionPage() {
   const handleSchedule = async (event) => {
     event.preventDefault();
 
-    if (!questionId.trim() || !dueAt) {
-      setError('Enter a question ID and revision date.');
+    if (!selectedQuestionId || !dueAt) {
+      setError('Please select a question and revision date.');
       return;
     }
 
@@ -149,10 +190,13 @@ export default function RevisionPage() {
       setError('');
       setMessage('');
 
-      await scheduleRevision(questionId.trim(), dueAt);
+      // The selected question's database ID is passed internally.
+      await scheduleRevision(selectedQuestionId, dueAt);
 
-      setQuestionId('');
+      setSelectedQuestionId('');
+      setQuestionSearch('');
       setDueAt('');
+
       await loadData();
 
       setMessage('Revision scheduled successfully.');
@@ -192,12 +236,31 @@ export default function RevisionPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: 'Overdue', value: schedule.summary.overdue || 0, color: 'text-red-600' },
-          { label: 'Due Today', value: schedule.summary.dueToday || 0, color: 'text-orange-600' },
-          { label: 'Upcoming', value: schedule.summary.upcoming || 0, color: 'text-indigo-600' },
-          { label: 'Total Pending', value: schedule.summary.totalPending || 0, color: 'text-gray-900' },
+          {
+            label: 'Overdue',
+            value: schedule.summary.overdue || 0,
+            color: 'text-red-600',
+          },
+          {
+            label: 'Due Today',
+            value: schedule.summary.dueToday || 0,
+            color: 'text-orange-600',
+          },
+          {
+            label: 'Upcoming',
+            value: schedule.summary.upcoming || 0,
+            color: 'text-indigo-600',
+          },
+          {
+            label: 'Total Pending',
+            value: schedule.summary.totalPending || 0,
+            color: 'text-gray-900',
+          },
         ].map((item) => (
-          <div key={item.label} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div
+            key={item.label}
+            className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+          >
             <p className="text-sm text-gray-500">{item.label}</p>
             <p className={`mt-1 text-2xl font-bold ${item.color}`}>
               {item.value}
@@ -231,29 +294,73 @@ export default function RevisionPage() {
         <h2 className="text-lg font-semibold text-gray-900">
           Schedule a Revision
         </h2>
+
         <p className="mt-1 text-sm text-gray-500">
-          Enter a question's database ID and the date you want to revise it.
+          Search and select a question from your Question Bank.
         </p>
 
-        <form onSubmit={handleSchedule} className="mt-4 grid gap-3 sm:grid-cols-3">
-          <input
-            value={questionId}
-            onChange={(event) => setQuestionId(event.target.value)}
-            placeholder="Question database ID"
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-          />
+        <form onSubmit={handleSchedule} className="mt-4 space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Search Question
+            </label>
 
-          <input
-            type="date"
-            value={dueAt}
-            onChange={(event) => setDueAt(event.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-          />
+            <input
+              type="text"
+              value={questionSearch}
+              onChange={(event) => {
+                setQuestionSearch(event.target.value);
+                setSelectedQuestionId('');
+              }}
+              placeholder="Search by question name or LeetCode number..."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Select Question
+            </label>
+
+            <select
+              value={selectedQuestionId}
+              onChange={(event) => setSelectedQuestionId(event.target.value)}
+              disabled={questionsLoading || questions.length === 0}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+            >
+              <option value="">
+                {questionsLoading
+                  ? 'Loading questions...'
+                  : questions.length === 0
+                    ? 'No questions found'
+                    : 'Choose a question'}
+              </option>
+
+              {questions.map((question) => (
+                <option key={question.id} value={question.id}>
+                  {question.title} · {question.topic} · {question.difficulty}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Revision Date
+            </label>
+
+            <input
+              type="date"
+              value={dueAt}
+              onChange={(event) => setDueAt(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+            />
+          </div>
 
           <button
             type="submit"
-            disabled={scheduling}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            disabled={scheduling || !selectedQuestionId || !dueAt}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {scheduling ? 'Scheduling...' : 'Schedule Revision'}
           </button>
@@ -284,8 +391,10 @@ export default function RevisionPage() {
                     {item.question?.topic || 'Other'}
                   </p>
                 </div>
+
                 <span className="text-xs text-green-700">
-                  Completed {item.completedAt
+                  Completed{' '}
+                  {item.completedAt
                     ? new Date(item.completedAt).toLocaleDateString()
                     : ''}
                 </span>
