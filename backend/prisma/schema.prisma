@@ -1,11 +1,11 @@
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -13,21 +13,59 @@ enum Role {
   ADMIN
 }
 
-model User {
-  id            String        @id @default(uuid())
-  name          String
-  email         String        @unique
-  passwordHash  String
-  role          Role          @default(USER)
-  isActive      Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
 
-  problems      Problem[]
-  customTopics  CustomTopic[]
-  deletedTopics DeletedTopic[]
+model User {
+  id                 String    @id @default(uuid())
+  name               String
+  email              String    @unique
+  passwordHash       String
+  role               Role      @default(USER)
+  isActive           Boolean   @default(true)
+  trialStartedAt     DateTime?
+  accessExpiresAt    DateTime?
+  hasPermanentAccess Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  problems          Problem[]
+  customTopics      CustomTopic[]
+  deletedTopics     DeletedTopic[]
+  questionProgress  UserQuestionProgress[]
+  codeSubmissions   CodeSubmission[]
+  dailyGoals        DailyGoal[]
+  studyActivities   StudyActivity[]
+  roadmapItems      UserRoadmap[]
+  revisionSchedules RevisionSchedule[]
+  payments          Payment[]
 
   @@index([role])
+  @@index([accessExpiresAt])
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  userId            String
+  razorpayOrderId   String        @unique
+  razorpayPaymentId String?       @unique
+  amountPaise       Int
+  currency          String        @default("INR")
+  status            PaymentStatus @default(PENDING)
+  periodStart       DateTime?
+  periodEnd         DateTime?
+  verifiedAt        DateTime?
+  failureReason     String?       @db.Text
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
 }
 
 model Problem {
@@ -80,4 +118,141 @@ model DeletedTopic {
 
   @@unique([userId, name])
   @@index([userId])
+}
+
+// Central question bank shared by all users
+model Question {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  leetcodeId  Int?     @unique
+  url         String   @unique
+  difficulty  String
+  topic       String
+  pattern     String
+  tags        String[] @default([])
+  description String?  @db.Text
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  paidOnly    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  progress          UserQuestionProgress[]
+  revisionSchedules RevisionSchedule[]
+
+  @@index([topic])
+  @@index([pattern])
+  @@index([difficulty])
+  @@index([isActive, sortOrder])
+  @@index([paidOnly])
+}
+
+// Each user's independent progress on each question
+model UserQuestionProgress {
+  id                 String    @id @default(uuid())
+  userId             String
+  questionId         String
+  status             String    @default("todo")
+  attempts           Int       @default(0)
+  successfulAttempts Int       @default(0)
+  lastAttemptAt      DateTime?
+  solvedAt           DateTime?
+  revisitAt          DateTime?
+  notes              String?   @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question    Question         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  submissions CodeSubmission[]
+
+  @@unique([userId, questionId])
+  @@index([userId, status])
+  @@index([userId, revisitAt])
+  @@index([questionId])
+}
+
+// Optional code saved by the user
+model CodeSubmission {
+  id         String   @id @default(uuid())
+  userId     String
+  progressId String
+  language   String
+  code       String   @db.Text
+  createdAt  DateTime @default(now())
+
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  progress UserQuestionProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([progressId])
+}
+
+// Daily question-solving target
+model DailyGoal {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime @db.Date
+  target    Int      @default(3)
+  completed Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// Daily activity for streaks and analytics
+model StudyActivity {
+  id             String   @id @default(uuid())
+  userId         String
+  date           DateTime @db.Date
+  solvedCount    Int      @default(0)
+  attemptedCount Int      @default(0)
+  studyMinutes   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// Personalized topic learning order
+model UserRoadmap {
+  id          String    @id @default(uuid())
+  userId      String
+  topic       String
+  pattern     String?
+  position    Int
+  status      String    @default("locked")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, position])
+  @@index([userId, status])
+}
+
+// Scheduled question revisions
+model RevisionSchedule {
+  id          String    @id @default(uuid())
+  userId      String
+  questionId  String
+  dueAt       DateTime
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId, dueAt])
+  @@index([userId, dueAt, completed])
 }

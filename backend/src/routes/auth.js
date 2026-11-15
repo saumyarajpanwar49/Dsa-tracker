@@ -12,6 +12,16 @@ const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 const prisma = new PrismaClient();
 
+const PUBLIC_USER_FIELDS = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  trialStartedAt: true,
+  accessExpiresAt: true,
+  hasPermanentAccess: true,
+};
+
 router.post('/register', async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -45,13 +55,9 @@ router.post('/register', async (req, res, next) => {
         email: normalizedEmail,
         passwordHash: await hashPassword(password),
         role: 'USER',
+        trialStartedAt: new Date(),
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-      },
+      select: PUBLIC_USER_FIELDS,
     });
 
     setAuthCookie(res, createToken(user));
@@ -92,6 +98,9 @@ router.post('/login', async (req, res, next) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      trialStartedAt: user.trialStartedAt,
+      accessExpiresAt: user.accessExpiresAt,
+      hasPermanentAccess: user.hasPermanentAccess,
     };
 
     setAuthCookie(res, createToken(publicUser));

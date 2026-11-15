@@ -1,4 +1,4 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -10,7 +10,7 @@
   html,
   body,
   #root {
-    height: 100%;
+    min-height: 100%;
     margin: 0;
     padding: 0;
   }
@@ -23,28 +23,67 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  ::selection {
+    background: #FFD700;
+    color: #000000;
+  }
+
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #000000;
+    background: #111111;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #222222;
-    border-radius: 4px;
+    background: #555555;
+    border-radius: 8px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
     background: #FFD700;
   }
+
+  input,
+  textarea,
+  select {
+    color-scheme: dark;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #AFAFAF;
+    opacity: 1;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #FFD700;
+    outline-offset: 3px;
+  }
+
+  option {
+    background: #242424;
+    color: #FFFFFF;
+  }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-accent text-bg font-semibold px-4 py-2 rounded-lg text-sm transition-all duration-150 hover:bg-accent-hover active:scale-95;
+    @apply bg-accent text-black font-semibold px-4 py-2 rounded-lg text-sm transition-all duration-150 hover:bg-accent-hover active:scale-95;
   }
 
   .btn-secondary {
@@ -56,19 +95,19 @@
   }
 
   .card {
-    @apply bg-card border border-border/80 rounded-xl p-4 transition-all duration-200 border-t-2 border-t-accent;
+    @apply bg-card border border-border rounded-xl p-4 transition-all duration-200 border-t-2 border-t-accent;
   }
 
   .card-hover {
-    @apply card hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5 hover:-translate-y-0.5;
+    @apply card hover:border-accent hover:shadow-xl hover:shadow-accent/10 hover:-translate-y-0.5;
   }
 
   .input-field {
-    @apply w-full bg-tag-bg border border-border rounded-lg px-3 py-2 text-text text-sm placeholder-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all duration-150;
+    @apply w-full bg-tag-bg border border-border rounded-lg px-3 py-2 text-text text-sm placeholder-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 transition-all duration-150;
   }
 
   .label {
-    @apply block text-xs font-medium text-muted mb-1.5 uppercase tracking-wide;
+    @apply block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wide;
   }
 
   .mono {

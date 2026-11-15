@@ -1,5 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAdminUsers, updateUserRole, updateUserStatus } from '../../lib/api';
+import {
+  getAdminUsers,
+  updateUserRole,
+  updateUserStatus,
+  updateUserPermanentAccess,
+} from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function UsersPage() {
@@ -11,21 +16,31 @@ export default function UsersPage() {
     queryFn: getAdminUsers,
   });
 
+  const refreshUsers = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
+  };
+
   const statusMutation = useMutation({
     mutationFn: ({ id, isActive }) => updateUserStatus(id, isActive),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
-    },
+    onSuccess: refreshUsers,
   });
 
   const roleMutation = useMutation({
     mutationFn: ({ id, role }) => updateUserRole(id, role),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
-    },
+    onSuccess: refreshUsers,
   });
+
+  const permanentAccessMutation = useMutation({
+    mutationFn: ({ id, enabled }) =>
+      updateUserPermanentAccess(id, enabled),
+    onSuccess: refreshUsers,
+  });
+
+  const mutationError =
+    statusMutation.error ||
+    roleMutation.error ||
+    permanentAccessMutation.error;
 
   if (isLoading) return <p className="text-muted">Loading users...</p>;
   if (isError) return <p className="text-red-400">Could not load users.</p>;
@@ -39,11 +54,9 @@ export default function UsersPage() {
         </p>
       </div>
 
-      {(statusMutation.isError || roleMutation.isError) && (
+      {mutationError && (
         <p className="text-sm text-red-400">
-          {statusMutation.error?.response?.data?.error ||
-            roleMutation.error?.response?.data?.error ||
-            'Action failed'}
+          {mutationError.response?.data?.error || 'Action failed. Please try again.'}
         </p>
       )}
 
@@ -55,13 +68,19 @@ export default function UsersPage() {
               <th className="pr-4">Role</th>
               <th className="pr-4">Problems</th>
               <th className="pr-4">Status</th>
+              <th className="pr-4">Subscription</th>
               <th>Actions</th>
             </tr>
           </thead>
 
           <tbody>
             {users.map((item) => {
-              const isSelf = item.id === currentUser.id;
+              const isSelf = item.id === currentUser?.id;
+              const isAdmin = item.role === 'ADMIN';
+              const isBusy =
+                statusMutation.isPending ||
+                roleMutation.isPending ||
+                permanentAccessMutation.isPending;
 
               return (
                 <tr key={item.id} className="border-b border-border/60">
@@ -71,32 +90,54 @@ export default function UsersPage() {
                   </td>
 
                   <td className="pr-4">{item.role}</td>
-                  <td className="pr-4">{item._count.problems}</td>
+
+                  <td className="pr-4">
+                    {item._count?.problems ?? 0}
+                  </td>
 
                   <td className={`pr-4 ${item.isActive ? 'text-green-400' : 'text-red-400'}`}>
                     {item.isActive ? 'Active' : 'Inactive'}
                   </td>
 
+                  <td className="pr-4">
+                    {isAdmin ? (
+                      <span className="text-green-400">Admin access</span>
+                    ) : item.hasPermanentAccess ? (
+                      <span className="text-green-400">Permanent free</span>
+                    ) : item.accessExpiresAt &&
+                      new Date(item.accessExpiresAt) > new Date() ? (
+                      <span className="text-blue-400">Paid access</span>
+                    ) : item.trialStartedAt &&
+                      Date.now() <
+                        new Date(item.trialStartedAt).getTime() + 15 * 60 * 1000 ? (
+                      <span className="text-yellow-400">Free trial</span>
+                    ) : item.trialStartedAt ? (
+                      <span className="text-red-400">Expired</span>
+                    ) : (
+                      <span className="text-muted">Legacy access</span>
+                    )}
+                  </td>
+
                   <td>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 min-w-48">
                       {!isSelf && (
                         <>
                           <button
                             className="btn-secondary text-xs"
-                            disabled={roleMutation.isPending}
+                            disabled={isBusy}
                             onClick={() =>
                               roleMutation.mutate({
                                 id: item.id,
-                                role: item.role === 'ADMIN' ? 'USER' : 'ADMIN',
+                                role: isAdmin ? 'USER' : 'ADMIN',
                               })
                             }
                           >
-                            {item.role === 'ADMIN' ? 'Make User' : 'Make Admin'}
+                            {isAdmin ? 'Make User' : 'Make Admin'}
                           </button>
 
                           <button
                             className="btn-secondary text-xs"
-                            disabled={statusMutation.isPending}
+                            disabled={isBusy}
                             onClick={() =>
                               statusMutation.mutate({
                                 id: item.id,
@@ -106,8 +147,35 @@ export default function UsersPage() {
                           >
                             {item.isActive ? 'Deactivate' : 'Activate'}
                           </button>
+
+                          {!isAdmin && (
+                            <button
+                              className="btn-secondary text-xs"
+                              disabled={isBusy}
+                              onClick={() => {
+                                const enabled = !item.hasPermanentAccess;
+                                const action = enabled ? 'grant' : 'revoke';
+
+                                if (
+                                  window.confirm(
+                                    `Are you sure you want to ${action} permanent free access for ${item.name}?`
+                                  )
+                                ) {
+                                  permanentAccessMutation.mutate({
+                                    id: item.id,
+                                    enabled,
+                                  });
+                                }
+                              }}
+                            >
+                              {item.hasPermanentAccess
+                                ? 'Revoke Permanent'
+                                : 'Grant Permanent'}
+                            </button>
+                          )}
                         </>
                       )}
+
                       {isSelf && (
                         <span className="text-xs text-muted">Your account</span>
                       )}

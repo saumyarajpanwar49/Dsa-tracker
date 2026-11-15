@@ -52,6 +52,10 @@ export const createTopic = (name) =>
 export const deleteTopic = (name) =>
   api.delete(`/topics/${encodeURIComponent(name)}`).then((r) => r.data);
 
+// LeetCode topic summaries
+export const getQuestionTopicSummary = () =>
+  api.get('/question-topics/summary').then((r) => r.data);
+
 // Reminders
 export const triggerReminders = () =>
   api.post('/reminders/trigger').then((r) => r.data);
@@ -71,5 +75,33 @@ export const updateUserStatus = (id, isActive) =>
 
 export const updateUserRole = (id, role) =>
   api.patch(`/admin/users/${id}/role`, { role }).then((r) => r.data);
+
+export const updateUserPermanentAccess = (id, hasPermanentAccess) =>
+  api.patch(`/admin/users/${id}/permanent-access`, {
+    hasPermanentAccess,
+  }).then((r) => r.data);
+
+// Subscription and payments
+export const getSubscriptionStatus = () =>
+  api.get('/payment/status').then((r) => r.data);
+
+export const createSubscriptionOrder = () =>
+  api.post('/payment/create-order').then((r) => r.data);
+
+export const verifySubscriptionPayment = (paymentDetails) =>
+  api.post('/payment/verify', paymentDetails).then((r) => r.data);
+
+// Question Bank
+export const getQuestions = (params = {}) =>
+  api.get('/questions', { params }).then((r) => r.data);
+
+export const getQuestionFilters = () =>
+  api.get('/questions/filters').then((r) => r.data);
+
+export const getQuestion = (id) =>
+  api.get(`/questions/${id}`).then((r) => r.data);
+
+export const updateQuestionProgress = (id, data) =>
+  api.patch(`/questions/${id}/progress`, data).then((r) => r.data);
 
 export default api;
